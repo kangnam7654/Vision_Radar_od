@@ -356,77 +356,58 @@ class PreProcessModules:
         return dic_labels, file_name_map
 
 
-# 레거시
-def labelme_to_yolo_legacy(
-        dir,
-        dic_classes=None,
-        save=False,
-        save_folder=None,
 
-):
-    dic_labels = {}
-    file_name_map = {}
-    num = 0
+
+def load_label_map():
+    label_map = {
+        'boat_triangle': 0,
+        'boat_rectangle': 1,
+        'range': 2,
+        'start': 3,
+        'end': 4
+    }
+    return label_map
+
+def compute_mean(p1, p2):
+    return (p1 + p2) / 2
+
+def compute_ratio(p1, p2, ref):
+    p1_ = min(p1, p2)
+    p2_ = max(p1, p2)
+    ratio = (p2_ - p1_) / ref
+    return ratio
+
+# 레거시
+def labelme_to_yolo_legacy(dir):
 
     directory = Path(dir)
-    image_files = directory.glob('*.png')
     json_files = directory.glob('*.json')
+    label_map = load_label_map()
 
-    for image_file in tqdm(image_files, desc='좌표변환'):
-        json_file = image_file.with_suffix('.json')
-
-        new_file_name = f"{str(num).zfill(6)}"
-        file_name_map[new_file_name] = {}
-        file_name_map[new_file_name]["name"] = file
-
-        dic_labels[new_file_name] = {}
+    for json_file in tqdm(json_files, desc='좌표변환'):
+        json_file = str(json_file)
 
         with open(json_file, "r") as f:
-            labelme_json = json.load(f)
-        shapes = labelme_json["shapes"]
-        image_width = labelme_json["imageWidth"]
-        image_height = labelme_json["imageHeight"]
+            labelme = json.load(f)
 
-        for idx, shape in enumerate(shapes):
-            label = dic_classes[
-                shape["label"].replace(" ", "_").replace("ragne", "range")
-            ]  # replace -> '_' 대신 ' '로 오타 낸 것들을 수정
+        image_h = labelme['imageHeight']
+        image_w = labelme['imageWidth']
+        shapes = labelme['shapes']
 
-            start_point, end_point = shape["points"]
-            x_start, y_start = start_point
-            x_end, y_end = end_point
+        labels = []
 
-            x_centre = (x_start + x_end) / 2
-            x_centre_normalize = round(x_centre / image_width, 6)
-
-            y_centre = (y_start + y_end) / 2
-            y_centre_normalize = round(y_centre / image_height, 6)
-
-            width = abs((x_end - x_start))
-            width_normalize = round(width / image_width, 6)
-
-            height = abs((y_end - y_start))
-            height_normalize = round(height / image_height, 6)
-
-            # if label != 3:
-            box = f"{label} {x_centre_normalize} {y_centre_normalize} {width_normalize} {height_normalize}"
-            dic_labels[new_file_name][idx] = box
-            # print(f"[{num + 1}/{len(file_list_no_extension)}] 번째 변환 끝")
-
-        if save:
-            image_to_save = cv2.imread(image_file)
-            save_dir = self.paths.get_project_root(*save_folder)
-            os.makedirs(save_dir, exist_ok=True)
-            image_to_save_file_name = os.path.join(save_dir, f"{new_file_name}.png")
-            label_to_save_file_name = os.path.join(save_dir, f"{new_file_name}.txt")
-            cv2.imwrite(image_to_save_file_name, image_to_save)
-
-            with open(label_to_save_file_name, "w") as txt:
-                for label in dic_labels[new_file_name].values():
-                    txt.write(f"{label}\n")
-                # print(f"{new_file_name} saved!")
-        num += 1
-        return dic_labels, file_name_map
+        for shape in shapes:
+            label = label_map[shape['label']]
+            points = shape['points'] # [[p1_x, p1_y], [p2_x, p2_y]]
+            p1 = points[0] # [p1_x, p1_y]
+            p2 = points[1] # [p2_x, p2_y]
+            x = compute_mean(p1[0], p2[0]) / image_w # mean(p1_x, p2_x) / w = ratio of x centre
+            y = compute_mean(p1[1], p2[1]) / image_h # mean(p1_y, p2_y) / h = ratio of y centre        
+            w = compute_ratio(p1[0], p2[0], image_w)
+            h = compute_ratio(p1[1], p2[1], image_h)
+            tmp_list = [label, x, y, w, h]
+            labels.append(tmp_list)
+        
 
 
 if __name__ == "__main__":
