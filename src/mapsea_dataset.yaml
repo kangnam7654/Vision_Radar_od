@@ -1,0 +1,11 @@
+download: null
+names:
+- boat_rectangle
+- boat_triangle
+- end
+- start
+nc: 4
+path: D:\project\Mapsea\data/train_data/test/circle_gray
+test: null
+train: train
+val: valid

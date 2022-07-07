@@ -1,0 +1,62 @@
+train_conf: # 데이터 학습
+  epochs: 1000 # 학습을 진행할 epoch 수 입니다.
+  batch_size: 8 # 학습을 진행할 batch size 입니다.
+  image_size: 320 # 학습을 진행할 이미지 사이즈 입니다. 사이즈 예시 : 224, 320, 640
+  device: 0  # 학습을 진행할 때 쓸 device 입니다.  cpu or '0, 1, 2, 3'
+  model_config: yaml/yolov5m.yaml # 모델의 사이즈를 결정할 config 파일의 경로입니다.
+  initial_weights: ./weights/old_radar_gray/weights/best.pt # 모델의 초기 가중치 파일 경로입니다.
+  dataset_yaml: yaml/mapsea_dataset.yaml # 데이터셋의 정보가 담긴 config 파일입니다. 현 파일의 경로를 입력하시면 됩니다.
+  hyper_parameter_yaml: yaml/mapsea_config.yaml # 학습시 하이퍼파라미터의 config 입니다. 현 파일의 경로를 입력하시면 됩니다.
+
+preprocess_conf: # 데이터 전처리
+  raw_data_dir1: ./data/origin/new_radar # 전처리할 이미지의 경로입니다.
+  raw_data_dir2: ./data/origin/old_radar
+  original_data_save: False # 전처리한 이미지를 renaming 하여 저장할지 여부입니다.
+  original_save_dir: data/train_data/test/original # 위의 original_data_save가 True 일경우의 저장할 경로입니다.
+  circle_data_save_dir: data/train_data/test/circle # 원형 crop한 이미지의 저장 경로입니다.
+  circle_info_save_path: circle_coordinate/circle_coordinates_default.json # 원형 crop할 이미지의 좌표를 저장할 경로입니다.
+  circle_n_count: 1 # 원형 좌표를 구하기 위해 계산할 이미지 수 입니다. count 수가 높으면 결과가 정확해지나 연산량이 큼으로 최대한 적게 잡는 것을 추천합니다.
+  #  train_valid_split: True
+  split_ratio: 0.8 # train data와 test data를 나눌 비율입니다. 해당 비율은 train data의 비율입니다.
+  also_gray: True # 원형 crop한 이미지를 grayscale 할 것인지의 여부입니다.
+  gray_save_dir: data/train_data/test/circle_gray # 원형 crop한 이미지를 grayscale하여 저장할 경로입니다.
+  update_yaml: True # mapsea_dataset.yaml을 자동으로 업데이트 할지 결정하는 변수입니다.
+
+inference:
+  data_dir: data/origin/old_radar # 예측을 실행할 이미지 폴더의 경로입니다
+  weight: weights/best.pt # 학습된 가중치의 경로입니다
+  circle_info_dir: circle_coordinate/circle_coordinates_default.json # 원형 좌표 정보 저장된 경로입니다. 해당 좌표를 가지고 원을 추출하여 예측합니다.
+  save: True # 결과를 저장할건지 결정하는 변수입니다.
+  save_dir: result/radar # 결과를 저장할 폴더의 경로입니다.
+  show: True # 예측을 진행하면서 이미지를 볼지 결정하는 변수입니다.
+
+# -------------------- 하이퍼 파라미터 ----------------------
+lr0: 0.01  # initial learning rate (SGD=1E-2, Adam=1E-3)
+lrf: 0.1  # final OneCycleLR learning rate (lr0 * lrf)
+momentum: 0.937  # SGD momentum/Adam beta1
+weight_decay: 0.0005  # optimizer weight decay 5e-4
+warmup_epochs: 3.0  # warmup epochs (fractions ok)
+warmup_momentum: 0.8  # warmup initial momentum
+warmup_bias_lr: 0.1  # warmup initial bias lr
+box: 0.05  # box loss gain
+cls: 0.5  # cls loss gain
+cls_pw: 1.0  # cls BCELoss positive_weight
+obj: 1.0  # obj loss gain (scale with pixels)
+obj_pw: 1.0  # obj BCELoss positive_weight
+iou_t: 0.20  # IoU training threshold
+anchor_t: 4.0  # anchor-multiple threshold
+# anchors: 3  # anchors per output layer (0 to ignore)
+fl_gamma: 0.0  # focal loss gamma (efficientDet default gamma=1.5)
+hsv_h: 0.015  # image HSV-Hue augmentation (fraction)
+hsv_s: 0.7  # image HSV-Saturation augmentation (fraction)
+hsv_v: 0.4  # image HSV-Value augmentation (fraction)
+degrees: 0.0  # image rotation (+/- deg)
+translate: 0.1  # image translation (+/- fraction)
+scale: 0.5  # image scale (+/- gain)
+shear: 0.0  # image shear (+/- deg)
+perspective: 0.0  # image perspective (+/- fraction), range 0-0.001
+flipud: 0.0  # image flip up-down (probability)
+fliplr: 0.5  # image flip left-right (probability)
+mosaic: 1.0  # image mosaic (probability)
+mixup: 0.0  # image mixup (probability)
+copy_paste: 0.0  # segment copy-paste (probability)
