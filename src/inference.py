@@ -9,7 +9,7 @@ import yaml
 from box import Box
 from tqdm import tqdm
 
-def config_load(config_yaml='mapsea_config.yaml'):
+def config_load(config_yaml='radar_config.yaml'):
     with open(GetPaths().get_yaml_folder(config_yaml)) as f:
         config = yaml.full_load(f)
         config = Box(config)
@@ -81,8 +81,8 @@ class InferenceProcess(InferenceModules):
 
 def main():
     config = config_load()
-    mapsea = InferenceProcess(cfg=config)
-    mapsea.process()
+    pipeline = InferenceProcess(cfg=config)
+    pipeline.process()
 
 if __name__ == "__main__":
     main()

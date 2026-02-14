@@ -4,8 +4,8 @@ import json
 import os
 
 import cv2
-import torch
 
+from ultralytics import YOLO
 from utils.common.project_paths import GetPaths
 
 
@@ -16,7 +16,6 @@ class InferenceModules:
     def __init__(self):
         self.paths = GetPaths()
         self.root_dir = GetPaths().project_root
-        self.device = "cuda" if torch.cuda.is_available() else "cpu"
 
     def load_circle_coordinate_dict(self, circle_info_path):
         """ 원 좌표의 정보를 담은 json 을 불러오는 메서드입니다.
@@ -53,21 +52,7 @@ class InferenceModules:
         :param weight: 모델의 가중치를 입력하는 변수입니다.
         :return:
         """
-        path_model_folder = os.path.join(self.root_dir)
-        if os.path.isfile(weight):
-            path_weight = weight
-        else:
-            path_weight = "yolov5m.pt"
-
-        model = torch.hub.load(
-            path_model_folder,
-            "custom",
-            path=path_weight,
-            source="local",
-            force_reload=True,
-            verbose=True,
-        )
-        model = model.to(self.device)
+        model = YOLO(weight)
         return model
 
     def get_data_list(self, path, extension="png"):
@@ -192,20 +177,23 @@ class InferenceModules:
         return image
 
     @staticmethod
-    def ratio_to_coordinate(output):
-        """ inference 의 결과에서 라벨의 위치 비율을 받아 좌표로 변환하는 메서드입니다.
+    def ratio_to_coordinate(results):
+        """ inference 의 결과에서 라벨의 위치를 좌표로 변환하는 메서드입니다.
 
-        :param output:
+        :param results: Ultralytics Results 객체
         :return:
         """
-        shape = output.imgs[0].shape[:2]
-        original_x, original_y = shape[0], shape[1]
-        xyxyn = output.pandas().xyxyn[0].T.to_dict()
-        for i in xyxyn.keys():
-            xyxyn[i]["xmin"] = int(xyxyn[i]["xmin"] * original_x)
-            xyxyn[i]["xmax"] = int(xyxyn[i]["xmax"] * original_x)
-            xyxyn[i]["ymin"] = int(xyxyn[i]["ymin"] * original_y)
-            xyxyn[i]["ymax"] = int(xyxyn[i]["ymax"] * original_y)
+        result = results[0]
+        xyxyn = {}
+        for i, box in enumerate(result.boxes):
+            x1, y1, x2, y2 = box.xyxy[0].tolist()
+            xyxyn[i] = {
+                "xmin": int(x1), "ymin": int(y1),
+                "xmax": int(x2), "ymax": int(y2),
+                "confidence": float(box.conf[0]),
+                "class": int(box.cls[0]),
+                "name": result.names[int(box.cls[0])]
+            }
         return xyxyn
 
     @staticmethod

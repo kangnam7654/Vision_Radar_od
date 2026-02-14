@@ -1,17 +1,16 @@
 import os
-from model.YOLO_v5 import train
+from ultralytics import YOLO
 from utils.common.project_paths import GetPaths
 from utils.train.pre_process_modules import PreProcessModules
 from box import Box
-# from config.config import config
 
 import yaml
 
 
-class MapseaTrain(PreProcessModules):
+class RadarTrain(PreProcessModules):
     def __init__(self, cfg):
         """
-        :param cfg: mapsea_train_config.yaml
+        :param cfg: radar_config.yaml
         """
         super().__init__()
         self.cfg = cfg
@@ -53,31 +52,26 @@ class MapseaTrain(PreProcessModules):
             self.copy_to_gray(circle_dir, gray_dir)
 
         if config.update_yaml:
-            with open(self.paths.get_project_root('yaml', 'mapsea_dataset.yaml')) as f:
+            with open(self.paths.get_project_root('yaml', 'radar_dataset.yaml')) as f:
                 d_yaml = yaml.full_load(f)
             d_yaml['path'] = gray_dir
-            with open(self.paths.get_project_root('yaml', 'mapsea_dataset.yaml'), 'w') as f:
+            with open(self.paths.get_project_root('yaml', 'radar_dataset.yaml'), 'w') as f:
                 yaml.dump(d_yaml, f)
         del config
 
     def model_train(self):
         conf = self.cfg.train_conf.copy()
-        opt = train.parse_opt()
-
-        opt.epochs = conf.epochs
-        opt.batch_size = conf.batch_size
-        opt.imgsz = conf.image_size
-
-        opt.cfg = conf.model_config
-        opt.weights = conf.initial_weights
-        opt.data = conf.dataset_yaml
-        opt.hyp = conf.hyper_parameter_yaml
-        opt.device = conf.device
-        del conf
-        train.main(opt)
+        model = YOLO(conf.model)
+        model.train(
+            data=conf.dataset_yaml,
+            epochs=conf.epochs,
+            batch=conf.batch_size,
+            imgsz=conf.image_size,
+            device=conf.device,
+        )
 
 
-def config_load(config_yaml='mapsea_config.yaml'):
+def config_load(config_yaml='radar_config.yaml'):
     with open(GetPaths().get_yaml_folder(config_yaml), 'r', encoding='utf-8') as f:
         config = yaml.full_load(f)
     config = Box(config)
@@ -90,9 +84,9 @@ def train_with_pre_process():
     :return:
     """
     config = config_load()
-    mapsea = MapseaTrain(cfg=config)
-    mapsea.pre_process()
-    mapsea.model_train()
+    pipeline = RadarTrain(cfg=config)
+    pipeline.pre_process()
+    pipeline.model_train()
 
 
 def train_without_pre_process():
@@ -101,8 +95,19 @@ def train_without_pre_process():
     :return:
     """
     config = config_load()
-    mapsea = MapseaTrain(cfg=config)
-    mapsea.model_train()
+    conf = config.train_conf
+    hyp = config.hyp
+
+    model = YOLO(conf.model)
+    model.train(
+        data=conf.dataset_yaml,
+        epochs=conf.epochs,
+        batch=conf.batch_size,
+        imgsz=conf.image_size,
+        device=conf.device,
+        patience=conf.patience,
+        **hyp,
+    )
 
 
 def main(run_pre_process=False):

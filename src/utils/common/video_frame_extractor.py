@@ -58,7 +58,7 @@ class VideoFrameExtract:
 
         fn = 0
         fn_ = str(fn).zfill(4)
-        file_name = f'/Users/kimkangnam/Desktop/Project/CompanyProject/DataVoucher/Mapsea/data/video/20211001_K_{fn_}.mp4'
+        file_name = os.path.join(GetPaths().project_root, 'data', 'video', f'20211001_K_{fn_}.mp4')
         out = cv2.VideoWriter(file_name, fourcc, self.original_fps, (w, h))
 
         while True:
@@ -76,7 +76,7 @@ class VideoFrameExtract:
                 out.release()
                 print(f"{file_name} saved")
                 fn_ = str(fn).zfill(4)
-                file_name = f'/Users/kimkangnam/Desktop/Project/CompanyProject/DataVoucher/Mapsea/data/video/20211001_K_{fn_}.mp4'
+                file_name = os.path.join(GetPaths().project_root, 'data', 'video', f'20211001_K_{fn_}.mp4')
                 out = cv2.VideoWriter(file_name, fourcc, self.original_fps, (w, h))
 
                 saved_frame = 0
