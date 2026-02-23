@@ -7,7 +7,7 @@
 ## Overview
 
 This project detects objects such as vessels in real-time from radar imagery.
-While radar UIs vary across devices, the circular scan area is common to all. The pipeline extracts the circular region using Hough Circle Transform, then performs detection with a YOLO model.
+While radar UIs vary across devices, the project handles multiple radar types by converting raw LabelMe annotations to a unified YOLO format with stratified sampling, then performs detection with a YOLO model.
 
 ### Data
 
@@ -28,23 +28,15 @@ Two types of radar data are used. Although the UIs differ, the circular scan are
 
 ## Method
 
-Training directly on raw radar screens degrades performance because UI elements act as noise.
-To address this, the following preprocessing pipeline was designed:
+The preprocessing pipeline converts raw annotated data into a YOLO-compatible dataset:
 
-### 1. Circle Extraction
+### 1. Annotation Conversion
 
-The circular scan area is detected via Hough Circle Transform on multiple images, outliers are filtered (1-sigma), and the averaged parameters are used to crop only the scan region.
+LabelMe JSON annotations are converted to YOLO format. Class labels are standardized (typo correction, name unification) and bounding box coordinates are normalized to `(class_id, x_center, y_center, width, height)`.
 
-![hough](./sample_images/hough_gray.png)
+### 2. Stratified Split
 
-### 2. Grayscale Conversion
-
-Even on the same radar, UI colors change depending on the time of day. Converting to grayscale makes the model robust to color variations.
-
-### 3. Coordinate Transform
-
-- **Training**: LabelMe bbox coordinates are converted to YOLO format and transformed to the cropped circle region's coordinate system.
-- **Inference**: Detection coordinates are inverse-transformed back to the original image space by adding the circle offset.
+Data is split into train/valid/test sets (default 80/10/10) with stratified sampling by radar type, ensuring each split has balanced representation from all radar sources.
 
 ## Result
 
@@ -64,7 +56,7 @@ Even on the same radar, UI colors change depending on the time of day. Convertin
 │   │   └── radar_dataset.yaml                  # Dataset definition (auto-updated)
 │   ├── utils/
 │   │   ├── train/
-│   │   │   └── pre_process_modules.py          # Preprocessing (circle extraction, LabelMe→YOLO, stratified split)
+│   │   │   └── pre_process_modules.py          # Preprocessing (LabelMe→YOLO conversion, stratified split)
 │   │   ├── inference/
 │   │   │   └── inference_modules.py            # Inference modules (model loading, coordinate inverse-transform)
 │   │   └── common/
@@ -104,7 +96,7 @@ uv sync
 
 ### Preprocessing
 
-Converts raw LabelMe annotations into a YOLO-format dataset with circle extraction, grayscale conversion, and stratified train/valid/test split.
+Converts raw LabelMe annotations into a YOLO-format dataset with stratified train/valid/test split.
 
 ```bash
 # Run preprocessing standalone
@@ -155,6 +147,6 @@ Output includes labeled images with bounding boxes and JSON files with detection
 ## Tech Stack
 
 - **Object Detection**: [Ultralytics YOLO](https://github.com/ultralytics/ultralytics)
-- **Image Processing**: OpenCV (Hough Circle Transform, grayscale conversion)
+- **Image Processing**: OpenCV
 - **Labeling**: [LabelMe](https://github.com/wkentaro/labelme)
 - **Package Management**: [uv](https://github.com/astral-sh/uv)

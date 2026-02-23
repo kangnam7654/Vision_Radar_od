@@ -7,7 +7,7 @@
 ## Overview
 
 레이더 영상에서 선박 등의 객체를 실시간으로 탐지합니다.
-레이더 UI는 기종마다 다르지만 원형 스캔 영역은 공통적이므로, Hough Circle Transform으로 원형 영역을 추출한 뒤 YOLO 모델로 탐지를 수행합니다.
+레이더 UI는 기종마다 다르지만, 여러 레이더 타입의 LabelMe 어노테이션을 통합된 YOLO 형식으로 변환하고 층화추출로 균형 잡힌 데이터셋을 구성하여 YOLO 모델로 탐지를 수행합니다.
 
 ### Data
 
@@ -28,23 +28,15 @@
 
 ## Method
 
-레이더 화면을 그대로 학습하면 UI 요소가 노이즈로 작용하여 성능이 저하됩니다.
-이를 해결하기 위해 다음과 같은 전처리 파이프라인을 설계했습니다.
+전처리 파이프라인은 원본 어노테이션 데이터를 YOLO 호환 데이터셋으로 변환합니다:
 
-### 1. Circle Extraction
+### 1. Annotation Conversion
 
-여러 이미지에 대해 Hough Circle Transform을 적용하고, 이상치를 1-sigma 필터링한 뒤 평균 파라미터로 원형 스캔 영역만 crop합니다.
+LabelMe JSON 어노테이션을 YOLO 형식으로 변환합니다. 클래스 레이블을 표준화(오타 수정, 이름 통일)하고, bbox 좌표를 `(class_id, x_center, y_center, width, height)`로 정규화합니다.
 
-![hough](./sample_images/hough_gray.png)
+### 2. Stratified Split
 
-### 2. Grayscale Conversion
-
-동일 레이더라도 시간대에 따라 UI 색상이 변하므로, grayscale로 변환하여 색상 변화에 강건하게 만듭니다.
-
-### 3. Coordinate Transform
-
-- **학습 시**: LabelMe bbox 좌표를 YOLO 형식으로 변환하고, crop된 원형 영역 기준 좌표계로 변환
-- **추론 시**: 탐지 결과 좌표에 원형 영역 오프셋을 더해 원본 이미지 좌표로 역변환
+레이더 타입별 층화추출로 train/valid/test 세트를 분할합니다 (기본 80/10/10). 모든 분할에 각 레이더 타입이 균형 있게 포함되도록 합니다.
 
 ## Result
 
@@ -64,7 +56,7 @@
 │   │   └── radar_dataset.yaml                  # 데이터셋 정의 (자동 갱신)
 │   ├── utils/
 │   │   ├── train/
-│   │   │   └── pre_process_modules.py          # 전처리 (원형 추출, LabelMe→YOLO, 층화 분할)
+│   │   │   └── pre_process_modules.py          # 전처리 (LabelMe→YOLO 변환, 층화 분할)
 │   │   ├── inference/
 │   │   │   └── inference_modules.py            # 추론 모듈 (모델 로드, 좌표 역변환)
 │   │   └── common/
@@ -104,7 +96,7 @@ uv sync
 
 ### Preprocessing
 
-LabelMe 어노테이션을 원형 추출, grayscale 변환, 층화 train/valid/test 분할을 거쳐 YOLO 형식 데이터셋으로 변환합니다.
+LabelMe 어노테이션을 YOLO 형식으로 변환하고, 층화 train/valid/test 분할을 수행합니다.
 
 ```bash
 # 전처리 단독 실행
@@ -155,6 +147,6 @@ inference:
 ## Tech Stack
 
 - **Object Detection**: [Ultralytics YOLO](https://github.com/ultralytics/ultralytics)
-- **Image Processing**: OpenCV (Hough Circle Transform, grayscale conversion)
+- **Image Processing**: OpenCV
 - **Labeling**: [LabelMe](https://github.com/wkentaro/labelme)
 - **Package Management**: [uv](https://github.com/astral-sh/uv)
