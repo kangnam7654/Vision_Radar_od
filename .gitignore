@@ -3,6 +3,8 @@ data/
 runs/detect/train/
 runs/detect/train2/
 runs/detect/train3/
+# inference outputs (src/inference.py)
+outputs/
 
 # Created by https://www.toptal.com/developers/gitignore/api/python,pycharm+all,windows,visualstudiocode,macos
 # Edit at https://www.toptal.com/developers/gitignore?templates=python,pycharm+all,windows,visualstudiocode,macos

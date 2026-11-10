@@ -1,88 +1,175 @@
-import json
-import os
+"""Run radar object detection on the public sample image (or a user-supplied image/folder).
 
-import cv2
+Default (from the repository root)::
 
-from utils.common.project_paths import GetPaths
-from utils.inference.inference_modules import InferenceModules
+    uv run python src/inference.py
+
+uses ``src/yaml/radar_config.yaml`` -> ``inference`` section:
+``sample_images/radar2.png`` + ``runs/detect/train4/weights/best.pt`` +
+``src/test_inference/test_circle_coordinates_old.json`` and writes
+``outputs/inference/radar2.png.annotated.png`` and ``radar2.png.detections.json``.
+
+Relative paths are resolved from the repository root. No GUI window is opened unless
+``--show`` (or ``show: true``) is set explicitly.
+"""
+from __future__ import annotations
+
+import argparse
+import math
+import sys
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any, Sequence
+
 import yaml
-from box import Box
-from tqdm import tqdm
 
-def config_load(config_yaml='radar_config.yaml'):
-    with open(GetPaths().get_yaml_folder(config_yaml)) as f:
-        config = yaml.full_load(f)
-        config = Box(config)
-    return config
+SRC_DIR = Path(__file__).resolve().parent
+if str(SRC_DIR) not in sys.path:
+    sys.path.insert(0, str(SRC_DIR))
+
+from utils.inference import inference_modules as im  # noqa: E402
+
+DEFAULT_CONFIG = SRC_DIR / "yaml" / "radar_config.yaml"
+WEIGHT_HINT = (
+    "Expected the committed checkpoint runs/detect/train4/weights/best.pt. "
+    "Weights are never downloaded or retrained automatically."
+)
 
 
-class InferenceProcess(InferenceModules):
+@dataclass
+class InferenceSettings:
+    source: Any
+    weight: Any
+    circle_json: Any
+    save_dir: Any = "outputs/inference"
+    save: bool = True
+    show: bool = False
+    conf: float = 0.25
+    grayscale: bool = False
+
+
+def load_settings(config_path: Any = None) -> InferenceSettings:
+    path = DEFAULT_CONFIG if config_path is None else im.resolve_path(config_path, label="--config")
+    if not path.is_file():
+        raise FileNotFoundError(f"Config file not found: {path}")
+    with open(path, "r", encoding="utf-8") as f:
+        try:
+            config = yaml.safe_load(f)
+        except yaml.YAMLError as exc:
+            raise im.InferenceConfigError(f"Config file is not valid YAML: {path} ({exc}).") from exc
+    section = config.get("inference") if isinstance(config, dict) else None
+    if not isinstance(section, dict):
+        raise im.InferenceConfigError(f"Config {path} has no 'inference' mapping.")
+
+    allowed = set(InferenceSettings.__dataclass_fields__)
+    unknown = sorted(set(section) - allowed)
+    if unknown:
+        raise im.InferenceConfigError(
+            f"Unknown inference config key(s) {unknown} in {path}; allowed: {sorted(allowed)}."
+        )
+    missing = [k for k in ("source", "weight", "circle_json") if section.get(k) in (None, "")]
+    if missing:
+        raise im.InferenceConfigError(f"Config {path} is missing inference.{', inference.'.join(missing)}.")
+    return InferenceSettings(**section)
+
+
+def validate_settings(settings: InferenceSettings) -> None:
+    for name in ("save", "show", "grayscale"):
+        if not isinstance(getattr(settings, name), bool):
+            raise im.InferenceConfigError(f"inference.{name} must be true or false, got {getattr(settings, name)!r}.")
+    conf = settings.conf
+    if isinstance(conf, bool) or not isinstance(conf, (int, float)) or not math.isfinite(conf) or not 0.0 <= conf <= 1.0:
+        raise im.InferenceConfigError(f"inference.conf must be a number in [0, 1], got {conf!r}.")
+    if not settings.save and not settings.show:
+        raise im.InferenceConfigError("Nothing to do: both save and show are disabled.")
+
+
+def run(settings: InferenceSettings, model: Any = None) -> list[dict[str, Any]]:
+    """Run inference and return one summary dict per image.
+
+    ``model`` may be injected (used by unit tests with a fake model); otherwise the
+    configured local checkpoint is loaded.
     """
-    Inference 에 대한 프로세스를 작성한 클래스입니다.
-    """
-    def __init__(self, cfg):
-        """
+    validate_settings(settings)
+    source = im.resolve_path(settings.source, label="inference.source / --source", kind="any")
+    weight = im.resolve_path(settings.weight, label="inference.weight / --weights", hint=WEIGHT_HINT)
+    circle_path = im.resolve_path(settings.circle_json, label="inference.circle_json / --circle-json")
+    geometry = im.load_circle_geometry(circle_path)
+    output_dir = (
+        im.resolve_path(settings.save_dir, label="inference.save_dir / --output-dir", must_exist=False)
+        if settings.save
+        else None
+    )
+    if output_dir is not None and output_dir.exists() and not output_dir.is_dir():
+        raise im.InferenceConfigError(f"Output path exists and is not a directory: {output_dir}")
 
-        :param data_path: Inference 를 진행할 데이터가 있는 경로입니다.
-        :param circle_info: 레이더 내 원의 좌표에 대한 변수입니다.
-        """
-        super().__init__()
-        self.paths = GetPaths()
-        self.cfg = cfg
-        self.data_list, self.circle_information, self.model = self.load()
+    images = im.collect_images(source, exclude_dir=output_dir)
+    if model is None:
+        model = im.load_model(weight)
 
-    def load(self):
-        """ 데이터와 레이더 내 원의 좌표, 그리고 학습된 모델의 가중치를 불러오는 메서드입니다.
-
-        :param data_path: Inference 를 진행할 데이터가 있는 경로입니다.
-        :param circle_info: 레이더 내 원의 좌표에 대한 변수입니다.
-        :param weight_path: 학습된 weight의 경로입니다.
-        :return:
-        data_list: 불러온 데이터의 list 입니다.
-        circle_information: 데이터 내의 원 좌표입니다.
-        model: 데이터를 inference 할 모델입니다.
-        """
-        data_list = sorted(self.get_data_list(path=self.cfg.inference.data_dir))
-        circle_information = self.load_circle_coordinate_dict(self.cfg.inference.circle_info_dir)
-        weight = self.load_weight(weight=self.cfg.inference.weight)
-        model = self.load_model(weight=weight)
-        return data_list, circle_information, model
-
-    def process(self):
-        """ Inference 를 진행하는 프로세스부 입니다.
-
-        :param save: Inference 후, 이미지와 라벨정보의 저장 여부를 결정하는 변수입니다.
-        :param save_dir: save 의 이미지와 라벨정보 저장을 할 폴더의 입력입니다.
-        :param show: inference중에 이미지의 표시 여부입니다.
-        """
-        if self.cfg.inference.save:
-            save_dir_ = os.path.join(self.paths.project_root, self.cfg.inference.save_dir)
-            os.makedirs(save_dir_, exist_ok=True)
-            print(f'결과가 "{save_dir_}" 에 저장됩니다.')
-
-        for data in tqdm(self.data_list, desc='inference'):
-            data_file_name = os.path.split(data)[1]
-            original_image, image_to_inference, output = self.inference(
-                self.model, data, self.circle_information
+    summaries = []
+    try:
+        for image_path in images:
+            annotated, record = im.process_image(
+                model, image_path, geometry, conf=float(settings.conf),
+                grayscale=settings.grayscale, weight_path=weight,
             )
-            xyxyn = self.ratio_to_coordinate(output)  # 라벨들의 xy 좌표의 비율, class, class_name을 가지는 dict로 반환
-            original_xyxyn = self.crop_to_original(xyxyn, self.circle_information)  # 자른 원형의 좌표를 자르기 전 좌표로 변환
-            labeled_image = self.display(original_image, original_xyxyn, show=self.cfg.inference.save)
+            summary = {"image": image_path, "detection_count": record["detection_count"], "record": record}
+            if output_dir is not None:
+                png_path, json_path = im.output_paths(image_path, output_dir, source if source.is_dir() else None)
+                im.save_outputs(annotated, record, png_path, json_path)
+                summary.update(png=png_path, json=json_path)
+                print(f"{im.display_path(image_path)}: {record['detection_count']} detection(s) -> "
+                      f"{im.display_path(png_path)}, {im.display_path(json_path)}")
+            else:
+                print(f"{im.display_path(image_path)}: {record['detection_count']} detection(s)")
+            if settings.show:
+                im.show_image(annotated, image_path.name)
+            summaries.append(summary)
+    finally:
+        if settings.show:
+            try:
+                import cv2
+                cv2.destroyAllWindows()
+            except Exception:  # headless build: nothing to close
+                pass
+    return summaries
 
-            if self.cfg.inference.save:
-                image_path = os.path.join(save_dir_, data_file_name)
-                label_path = f"{image_path.split('.')[0]}.json"
-                cv2.imwrite(image_path, labeled_image)
-                with open(label_path, "w") as f:
-                    json.dump(original_xyxyn, f)
 
-            # print(f"{idx + 1}/{len(self.data_list)} completed")
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
+    parser.add_argument("--config", help="YAML config (default: src/yaml/radar_config.yaml).")
+    parser.add_argument("--source", help="Image file or directory (relative to repo root, or absolute).")
+    parser.add_argument("--weights", help="Existing Ultralytics .pt checkpoint.")
+    parser.add_argument("--circle-json", help="Circle JSON: flat {x_centre, y_centre, radius} or nested 'old_radar'.")
+    parser.add_argument("--output-dir", help="Output folder for annotated PNG + JSON (default: outputs/inference).")
+    parser.add_argument("--conf", type=float, help="Confidence threshold in [0, 1].")
+    parser.add_argument("--show", action="store_true", help="Opt-in: open a preview window per image (needs a GUI).")
+    parser.add_argument("--no-save", action="store_true", help="Do not write outputs (only useful with --show).")
+    return parser
 
 
-def main():
-    config = config_load()
-    pipeline = InferenceProcess(cfg=config)
-    pipeline.process()
+def main(argv: Sequence[str] | None = None) -> int:
+    args = build_parser().parse_args(argv)
+    try:
+        settings = load_settings(args.config)
+        overrides = {
+            "source": args.source, "weight": args.weights, "circle_json": args.circle_json,
+            "save_dir": args.output_dir, "conf": args.conf,
+        }
+        for key, value in overrides.items():
+            if value is not None:
+                setattr(settings, key, value)
+        if args.show:
+            settings.show = True
+        if args.no_save:
+            settings.save = False
+        run(settings)
+    except (im.InferenceError, FileNotFoundError, OSError, ValueError, RuntimeError) as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+    return 0
+
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

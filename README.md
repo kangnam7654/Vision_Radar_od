@@ -65,8 +65,13 @@ Data is split into train/valid/test sets (default 80/10/10) with stratified samp
 │   │       ├── random_rotate.py                # Random rotation augmentation
 │   │       └── save_json.py                    # JSON saving
 │   └── test_inference/
-│       ├── test_inference.py                   # Inference unit test
-│       └── test_data/                          # Test images
+│       ├── test_inference.py                   # Batch inference script over test_data (not a unit test)
+│       ├── test_circle_coordinates_old.json    # Scan-circle pixel coordinates used by the sample demo
+│       ├── test_data/                          # Test images
+│       └── test_results/                       # Historical outputs of an earlier model (unchanged)
+├── tests/
+│   └── test_inference_logic.py                 # Deterministic unittest suite (synthetic images, fake model)
+├── outputs/                                    # Inference outputs (git-ignored)
 ├── data/                                       # Raw & processed data (git-ignored)
 │   ├── radar1/                                 # Raw radar type 1 (PNG + LabelMe JSON)
 │   ├── radar2/                                 # Raw radar type 2
@@ -125,24 +130,60 @@ train_conf:
   patience: 100           # Early stopping patience
 ```
 
-### Inference
+### Inference (public sample demo)
+
+Run from the repository root:
 
 ```bash
 uv run python src/inference.py
 ```
 
-Inference configuration is also in `src/yaml/radar_config.yaml`:
+With the default config this processes the single public sample `sample_images/radar2.png` using only files already committed to this repository:
+
+| Input | Path |
+|-------|------|
+| Image | `sample_images/radar2.png` |
+| Checkpoint | `runs/detect/train4/weights/best.pt` (Ultralytics YOLO26n fine-tune, run `train4`, see `runs/detect/train4/args.yaml`) |
+| Scan circle | `src/test_inference/test_circle_coordinates_old.json` (`x_centre=438, y_centre=348, radius=339`, pixels) |
+
+Outputs are written to the git-ignored `outputs/inference/` folder:
+
+- `radar2.png.annotated.png` — the original-resolution image with boxes drawn on a copy
+- `radar2.png.detections.json` — sidecar JSON (always valid, `"detections": []` when nothing is found)
+
+Pipeline: crop the circle's bounding square (must lie fully inside the image, otherwise an error is raised), zero the pixels outside the scan circle, run the model on the crop, then map boxes back to the original image. In the JSON, `xyxy_px` are **absolute pixel** coordinates `(x1, y1, x2, y2)` in the original image (crop offset added, clipped to the image bounds) and `crop_xyxy_px` are pixel coordinates inside the crop; normalized 0–1 ratios are not stored. Each detection keeps `class_id`, `class_name` and `confidence`.
+
+Configuration lives in `src/yaml/radar_config.yaml` (relative paths are resolved from the repository root; absolute paths are accepted):
 
 ```yaml
 inference:
-  data_dir: data/origin/old_radar
-  weight: weights/best.pt
-  circle_info_dir: circle_coordinate/circle_coordinates_default.json
-  save: True
-  save_dir: result/radar
+  source: sample_images/radar2.png          # image file or folder
+  weight: runs/detect/train4/weights/best.pt
+  circle_json: src/test_inference/test_circle_coordinates_old.json  # flat, or nested under "old_radar"
+  save: true
+  save_dir: outputs/inference
+  show: false                               # opt-in preview window
+  conf: 0.25
+  grayscale: false                          # true = legacy gray->BGR model input
 ```
 
-Output includes labeled images with bounding boxes and JSON files with detection coordinates.
+CLI overrides: `--source`, `--weights`, `--circle-json`, `--output-dir`, `--conf`, `--config`, `--show`, `--no-save`.
+
+Headless behaviour: no window is opened by default, so it works over SSH/CI. `--show` is opt-in and requires a GUI-capable OpenCV build plus a display; saving does not depend on it. Missing files, an unreadable/empty image, an empty input folder, or an out-of-frame circle produce an error message and exit code 2. A missing checkpoint is **never** downloaded or retrained.
+
+Limitations:
+
+- This is a demonstration on one public sample image only. The circle JSON is specific to that radar layout/resolution; other images need their own circle coordinates.
+- The committed checkpoint is a YOLO26 model. It is not the earlier YOLOv5 model described in older portfolio material and is not claimed to reproduce that project's results; no accuracy metrics are claimed here.
+- `src/test_inference/test_results/` holds historical outputs from an earlier model with different classes and is kept unchanged for reference. `uv run python src/test_inference/test_inference.py` re-runs the current pipeline on `test_data/` into `outputs/test_inference/` instead.
+
+### Tests
+
+```bash
+uv run python -m unittest discover -s tests -v
+```
+
+These are deterministic unit tests for path resolution, circle validation/cropping, pixel coordinate mapping/clipping and saving. They use temporary synthetic images and a fake model output — they do **not** run the real model and say nothing about detection quality.
 
 ## Tech Stack
 
