@@ -7,13 +7,16 @@ train_conf: # 데이터 학습
   dataset_yaml: yaml/radar_dataset.yaml # 데이터셋의 정보가 담긴 config 파일입니다. 현 파일의 경로를 입력하시면 됩니다.
   patience: 100 # early stopping patience (epoch)
 
+# 추론 경로는 모두 저장소 루트 기준입니다 (절대 경로도 허용). Paths are relative to the repository root.
 inference:
-  data_dir: data/origin/old_radar # 예측을 실행할 이미지 폴더의 경로입니다
-  weight: weights/best.pt # 학습된 가중치의 경로입니다
-  circle_info_dir: circle_coordinate/circle_coordinates_default.json # 원형 좌표 정보 저장된 경로입니다. 해당 좌표를 가지고 원을 추출하여 예측합니다.
-  save: True # 결과를 저장할건지 결정하는 변수입니다.
-  save_dir: result/radar # 결과를 저장할 폴더의 경로입니다.
-  show: True # 예측을 진행하면서 이미지를 볼지 결정하는 변수입니다.
+  source: sample_images/radar2.png # 이미지 파일 또는 폴더 (공개 샘플 1장) / image file or folder
+  weight: runs/detect/train4/weights/best.pt # 커밋된 학습 가중치. 없으면 다운로드/재학습하지 않고 에러 / committed checkpoint, never downloaded
+  circle_json: src/test_inference/test_circle_coordinates_old.json # 원형 스캔 영역 (flat 또는 old_radar 중첩 JSON) / scan circle in pixels
+  save: true # 주석 PNG + JSON 저장 / save annotated PNG + JSON sidecar
+  save_dir: outputs/inference # 결과 폴더 (git-ignored) / output folder
+  show: false # true 일 때만 창 표시 (GUI 필요) / opt-in preview window
+  conf: 0.25 # confidence threshold
+  grayscale: false # true: 이전 파이프라인처럼 gray->BGR 입력 / legacy gray->BGR model input
 
 # -------------------- 하이퍼 파라미터 (YOLO26) ----------------------
 hyp:

@@ -65,8 +65,13 @@ LabelMe JSON 어노테이션을 YOLO 형식으로 변환합니다. 클래스 레
 │   │       ├── random_rotate.py                # 랜덤 회전 augmentation
 │   │       └── save_json.py                    # JSON 저장
 │   └── test_inference/
-│       ├── test_inference.py                   # 추론 유닛 테스트
-│       └── test_data/                          # 테스트 이미지
+│       ├── test_inference.py                   # test_data 일괄 추론 스크립트 (유닛 테스트 아님)
+│       ├── test_circle_coordinates_old.json    # 샘플 데모용 스캔 원 픽셀 좌표
+│       ├── test_data/                          # 테스트 이미지
+│       └── test_results/                       # 이전 모델의 과거 결과 (변경하지 않음)
+├── tests/
+│   └── test_inference_logic.py                 # 결정적 unittest (합성 이미지, 가짜 모델 출력)
+├── outputs/                                    # 추론 결과 (git 미추적)
 ├── data/                                       # 원본 및 가공 데이터 (git 미추적)
 │   ├── radar1/                                 # 레이더 타입 1 원본 (PNG + LabelMe JSON)
 │   ├── radar2/                                 # 레이더 타입 2 원본
@@ -125,24 +130,60 @@ train_conf:
   patience: 100           # Early stopping patience
 ```
 
-### Inference
+### Inference (공개 샘플 데모)
+
+저장소 루트에서 실행합니다:
 
 ```bash
 uv run python src/inference.py
 ```
 
-추론 설정도 `src/yaml/radar_config.yaml`에서 수정합니다:
+기본 설정은 저장소에 이미 커밋된 파일만 사용하여 공개 샘플 이미지 1장(`sample_images/radar2.png`)을 처리합니다:
+
+| 입력 | 경로 |
+|------|------|
+| 이미지 | `sample_images/radar2.png` |
+| 체크포인트 | `runs/detect/train4/weights/best.pt` (Ultralytics YOLO26n 파인튜닝, `train4` 실행, `runs/detect/train4/args.yaml` 참고) |
+| 스캔 원 | `src/test_inference/test_circle_coordinates_old.json` (`x_centre=438, y_centre=348, radius=339`, 픽셀) |
+
+결과는 git 미추적 폴더 `outputs/inference/`에 저장됩니다:
+
+- `radar2.png.annotated.png` — 원본 해상도 이미지의 복사본에 박스를 그린 결과
+- `radar2.png.detections.json` — 사이드카 JSON (탐지가 없어도 `"detections": []`인 유효한 JSON)
+
+처리 과정: 원의 외접 정사각형을 자르고(이미지 안에 완전히 들어오지 않으면 에러), 스캔 원 밖의 픽셀을 0으로 마스킹한 뒤 모델을 실행하고, 박스를 원본 이미지 좌표로 되돌립니다. JSON의 `xyxy_px`는 원본 이미지 기준 **절대 픽셀** 좌표 `(x1, y1, x2, y2)`(crop 오프셋 반영, 이미지 경계로 클리핑)이고, `crop_xyxy_px`는 crop 내부 픽셀 좌표입니다. 0–1 정규화 비율은 저장하지 않습니다. 각 탐지는 `class_id`, `class_name`, `confidence`를 포함합니다.
+
+설정은 `src/yaml/radar_config.yaml`에 있습니다 (상대 경로는 저장소 루트 기준, 절대 경로 허용):
 
 ```yaml
 inference:
-  data_dir: data/origin/old_radar
-  weight: weights/best.pt
-  circle_info_dir: circle_coordinate/circle_coordinates_default.json
-  save: True
-  save_dir: result/radar
+  source: sample_images/radar2.png          # 이미지 파일 또는 폴더
+  weight: runs/detect/train4/weights/best.pt
+  circle_json: src/test_inference/test_circle_coordinates_old.json  # flat 또는 "old_radar" 중첩
+  save: true
+  save_dir: outputs/inference
+  show: false                               # 창 표시는 명시적으로 켤 때만
+  conf: 0.25
+  grayscale: false                          # true = 이전 방식(gray->BGR) 모델 입력
 ```
 
-바운딩 박스가 그려진 이미지와 탐지 좌표가 담긴 JSON 파일이 출력됩니다.
+CLI 옵션: `--source`, `--weights`, `--circle-json`, `--output-dir`, `--conf`, `--config`, `--show`, `--no-save`.
+
+헤드리스 동작: 기본적으로 창을 띄우지 않으므로 SSH/CI 환경에서도 동작합니다. `--show`는 선택 사항이며 GUI 지원 OpenCV와 디스플레이가 필요하고, 저장 여부와는 무관합니다. 파일 누락, 읽을 수 없거나 빈 이미지, 빈 입력 폴더, 이미지 밖으로 벗어나는 원 좌표는 에러 메시지와 종료 코드 2를 반환합니다. 체크포인트가 없으면 절대 자동 다운로드하거나 재학습하지 않습니다.
+
+한계:
+
+- 공개 샘플 이미지 1장에 대한 데모입니다. 원 좌표 JSON은 해당 레이더 레이아웃/해상도 전용이며, 다른 이미지는 별도의 원 좌표가 필요합니다.
+- 커밋된 체크포인트는 YOLO26 모델입니다. 이전 포트폴리오에 소개된 YOLOv5 모델이 아니며 그 결과를 재현한다고 주장하지 않습니다. 여기서는 정확도 지표를 제시하지 않습니다.
+- `src/test_inference/test_results/`는 클래스 구성이 다른 이전 모델의 과거 결과이며 참고용으로 그대로 둡니다. `uv run python src/test_inference/test_inference.py`는 현재 파이프라인으로 `test_data/`를 처리해 `outputs/test_inference/`에 저장합니다.
+
+### Tests
+
+```bash
+uv run python -m unittest discover -s tests -v
+```
+
+경로 해석, 원 좌표 검증/자르기, 픽셀 좌표 변환/클리핑, 저장 로직에 대한 결정적 유닛 테스트입니다. 임시 합성 이미지와 가짜 모델 출력만 사용하며, 실제 모델 추론을 실행하지 않고 탐지 품질에 대해서도 아무것도 보장하지 않습니다.
 
 ## Tech Stack
 
