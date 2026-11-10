@@ -6,10 +6,14 @@
 
 **What it does:** locate object candidates inside a marine-radar scan, then return boxes in the original image coordinates. The example below uses the existing public sample and committed **YOLO26n / train4** checkpoint.
 
-<picture>
-  <source media="(max-width: 600px)" srcset="./sample_images/public-demo-mobile.png">
-  <img alt="Input scan and all actual candidate detections; mobile shows output first" src="./sample_images/public-demo-comparison.png">
-</picture>
+![Actual current sample output with all numbered candidate boxes](./sample_images/public-demo-mobile.png)
+
+<details>
+<summary>Compare the input and actual output side by side</summary>
+
+![The same input scan and current YOLO26n output](./sample_images/public-demo-comparison.png)
+
+</details>
 
 <details>
 <summary>Numbered candidates and full input</summary>
@@ -29,7 +33,7 @@
 </details>
 
 
-**How to read it:** desktop shows input and output side by side; mobile shows the output first. **All seven actual model candidates** are retained, including overlapping boxes. Numbers refer to the class/confidence legend. Confidence is not detection accuracy; this single image is not a quality benchmark. [Inspect the actual pixel coordinates and scores](./sample_images/public-demo-detections.json).
+**How to read it:** the output is shown first at a readable size. Expand the comparison above to see the same input and output side by side. **All seven actual model candidates** are retained, including overlapping boxes. Numbers refer to the class/confidence legend. Confidence is not detection accuracy; this single image is not a quality benchmark. [Inspect the actual pixel coordinates and scores](./sample_images/public-demo-detections.json).
 
 **Run the same sample** from this repository after setup:
 ```bash

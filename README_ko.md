@@ -6,10 +6,14 @@
 
 **무엇을 하는가:** 해상 레이더의 원형 스캔 안에서 객체 후보를 찾고, 탐지 상자를 원본 이미지의 픽셀 좌표로 반환합니다. 아래는 저장소의 공개 샘플과 **YOLO26n / train4** 체크포인트로 실제 추론한 결과입니다.
 
-<picture>
-  <source media="(max-width: 600px)" srcset="./sample_images/public-demo-mobile.png">
-  <img alt="입력과 실제 탐지 후보 비교 — 모바일에서는 결과를 먼저 표시" src="./sample_images/public-demo-comparison.png">
-</picture>
+![실제 공개 샘플 출력 — 번호로 표시한 탐지 후보 전체](./sample_images/public-demo-mobile.png)
+
+<details>
+<summary>입력과 실제 출력을 나란히 비교하기</summary>
+
+![동일한 입력 스캔과 현재 YOLO26n 결과 비교](./sample_images/public-demo-comparison.png)
+
+</details>
 
 <details>
 <summary>번호별 후보와 원본 입력 보기</summary>
@@ -29,7 +33,7 @@
 </details>
 
 
-**보는 방법:** 데스크톱에서는 입력과 출력을 나란히, 모바일에서는 출력을 먼저 보여줍니다. 겹친 상자까지 포함한 **실제 후보 7개 전체**를 보존했습니다. 번호로 클래스와 confidence를 찾아볼 수 있습니다. confidence는 정확도가 아니며, 이 한 장을 성능 평가로 제시하지 않습니다. [실제 좌표·점수 JSON 보기](./sample_images/public-demo-detections.json).
+**보는 방법:** 휴대폰에서도 읽을 수 있도록 출력을 먼저 크게 보여줍니다. 위 비교 항목을 펼치면 같은 입력과 출력을 나란히 볼 수 있습니다. 겹친 상자까지 포함한 **실제 후보 7개 전체**를 보존했습니다. 번호로 클래스와 confidence를 찾아볼 수 있습니다. confidence는 정확도가 아니며, 이 한 장을 성능 평가로 제시하지 않습니다. [실제 좌표·점수 JSON 보기](./sample_images/public-demo-detections.json).
 
 **같은 샘플 실행하기** — 아래 설치 과정 후 저장소 루트에서:
 ```bash
