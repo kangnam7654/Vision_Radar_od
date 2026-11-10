@@ -1,0 +1,147 @@
+{
+  "source_image": "sample_images/radar2.png",
+  "image_size_px": {
+    "width": 1280,
+    "height": 768
+  },
+  "weights": "runs/detect/train4/weights/best.pt",
+  "circle_px": {
+    "x_centre": 438,
+    "y_centre": 348,
+    "radius": 339
+  },
+  "crop_box_xyxy_px": [
+    99,
+    9,
+    778,
+    688
+  ],
+  "model_input": {
+    "masked_outside_circle": true,
+    "grayscale": false,
+    "conf_threshold": 0.25
+  },
+  "coordinate_space": "xyxy_px: absolute pixel coordinates (x1, y1, x2, y2) in the original image, clipped to the image bounds. crop_xyxy_px: pixel coordinates inside the masked circle crop given to the model. No normalized (0..1) ratios are stored.",
+  "detection_count": 7,
+  "detections": [
+    {
+      "class_id": 3,
+      "class_name": "start",
+      "confidence": 0.815366,
+      "xyxy_px": [
+        430.21,
+        329.09,
+        449.14,
+        356.0
+      ],
+      "crop_xyxy_px": [
+        331.21,
+        320.09,
+        350.14,
+        347.0
+      ]
+    },
+    {
+      "class_id": 1,
+      "class_name": "boat_triangle",
+      "confidence": 0.754201,
+      "xyxy_px": [
+        419.87,
+        388.48,
+        440.33,
+        410.76
+      ],
+      "crop_xyxy_px": [
+        320.87,
+        379.48,
+        341.33,
+        401.76
+      ]
+    },
+    {
+      "class_id": 2,
+      "class_name": "end",
+      "confidence": 0.738788,
+      "xyxy_px": [
+        592.82,
+        57.12,
+        610.07,
+        76.73
+      ],
+      "crop_xyxy_px": [
+        493.82,
+        48.12,
+        511.07,
+        67.73
+      ]
+    },
+    {
+      "class_id": 1,
+      "class_name": "boat_triangle",
+      "confidence": 0.736179,
+      "xyxy_px": [
+        512.65,
+        225.37,
+        538.46,
+        250.61
+      ],
+      "crop_xyxy_px": [
+        413.65,
+        216.37,
+        439.46,
+        241.61
+      ]
+    },
+    {
+      "class_id": 1,
+      "class_name": "boat_triangle",
+      "confidence": 0.619818,
+      "xyxy_px": [
+        399.94,
+        350.62,
+        424.7,
+        382.66
+      ],
+      "crop_xyxy_px": [
+        300.94,
+        341.62,
+        325.7,
+        373.66
+      ]
+    },
+    {
+      "class_id": 1,
+      "class_name": "boat_triangle",
+      "confidence": 0.421476,
+      "xyxy_px": [
+        452.39,
+        262.39,
+        489.26,
+        309.19
+      ],
+      "crop_xyxy_px": [
+        353.39,
+        253.39,
+        390.26,
+        300.19
+      ]
+    },
+    {
+      "class_id": 1,
+      "class_name": "boat_triangle",
+      "confidence": 0.253187,
+      "xyxy_px": [
+        454.86,
+        270.65,
+        493.23,
+        313.65
+      ],
+      "crop_xyxy_px": [
+        355.86,
+        261.65,
+        394.23,
+        304.65
+      ]
+    }
+  ]
+}

@@ -2,6 +2,45 @@
 
 [한국어](./README_ko.md)
 
+## See the current sample first
+
+**What it does:** locate object candidates inside a marine-radar scan, then return boxes in the original image coordinates. The example below uses the existing public sample and committed **YOLO26n / train4** checkpoint.
+
+<picture>
+  <source media="(max-width: 600px)" srcset="./sample_images/public-demo-mobile.png">
+  <img alt="Input scan and all actual candidate detections; mobile shows output first" src="./sample_images/public-demo-comparison.png">
+</picture>
+
+<details>
+<summary>Numbered candidates and full input</summary>
+
+[Original public input image](./sample_images/radar2.png). Candidate scores are model confidences, not measured accuracy.
+
+| # | Class | Confidence |
+|---|---|---|
+| 1 | `start` | 0.815 |
+| 2 | `boat_triangle` | 0.754 |
+| 3 | `end` | 0.739 |
+| 4 | `boat_triangle` | 0.736 |
+| 5 | `boat_triangle` | 0.620 |
+| 6 | `boat_triangle` | 0.421 |
+| 7 | `boat_triangle` | 0.253 |
+
+</details>
+
+
+**How to read it:** desktop shows input and output side by side; mobile shows the output first. **All seven actual model candidates** are retained, including overlapping boxes. Numbers refer to the class/confidence legend. Confidence is not detection accuracy; this single image is not a quality benchmark. [Inspect the actual pixel coordinates and scores](./sample_images/public-demo-detections.json).
+
+**Run the same sample** from this repository after setup:
+```bash
+uv run python src/inference.py
+```
+The command saves the original-resolution annotated PNG and JSON to `outputs/inference/`; it does not open a window. [Setup and output details](#inference-public-sample-demo).
+
+> **Version boundary:** this is the current public YOLO26n sample. The portfolio's earlier YOLOv5 work and the historical result image below are separate evidence, not results of this checkpoint.
+
+---
+
 > **Portfolio Project** — A computer vision project for detecting objects on marine radar screens.
 
 ## Overview
@@ -39,6 +78,8 @@ LabelMe JSON annotations are converted to YOLO format. Class labels are standard
 Data is split into train/valid/test sets (default 80/10/10) with stratified sampling by radar type, ensuring each split has balanced representation from all radar sources.
 
 ## Result
+
+**Historical illustration, not the current checkpoint output:**
 
 ![result](./sample_images/result.png)
 

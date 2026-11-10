@@ -2,6 +2,45 @@
 
 [English](./README.md)
 
+## 현재 실행 결과부터 보기
+
+**무엇을 하는가:** 해상 레이더의 원형 스캔 안에서 객체 후보를 찾고, 탐지 상자를 원본 이미지의 픽셀 좌표로 반환합니다. 아래는 저장소의 공개 샘플과 **YOLO26n / train4** 체크포인트로 실제 추론한 결과입니다.
+
+<picture>
+  <source media="(max-width: 600px)" srcset="./sample_images/public-demo-mobile.png">
+  <img alt="입력과 실제 탐지 후보 비교 — 모바일에서는 결과를 먼저 표시" src="./sample_images/public-demo-comparison.png">
+</picture>
+
+<details>
+<summary>번호별 후보와 원본 입력 보기</summary>
+
+[원본 공개 입력 이미지](./sample_images/radar2.png). confidence를 정확도 수치로 해석하지 않습니다.
+
+| # | Class | Confidence |
+|---|---|---|
+| 1 | `start` | 0.815 |
+| 2 | `boat_triangle` | 0.754 |
+| 3 | `end` | 0.739 |
+| 4 | `boat_triangle` | 0.736 |
+| 5 | `boat_triangle` | 0.620 |
+| 6 | `boat_triangle` | 0.421 |
+| 7 | `boat_triangle` | 0.253 |
+
+</details>
+
+
+**보는 방법:** 데스크톱에서는 입력과 출력을 나란히, 모바일에서는 출력을 먼저 보여줍니다. 겹친 상자까지 포함한 **실제 후보 7개 전체**를 보존했습니다. 번호로 클래스와 confidence를 찾아볼 수 있습니다. confidence는 정확도가 아니며, 이 한 장을 성능 평가로 제시하지 않습니다. [실제 좌표·점수 JSON 보기](./sample_images/public-demo-detections.json).
+
+**같은 샘플 실행하기** — 아래 설치 과정 후 저장소 루트에서:
+```bash
+uv run python src/inference.py
+```
+원본 해상도 결과 PNG와 JSON이 `outputs/inference/`에 저장되며 화면 창은 열리지 않습니다. 상세 옵션과 제한은 아래 추론 섹션에 있습니다.
+
+> **버전 구분:** 위 결과는 현재 공개 코드의 YOLO26n 샘플입니다. 포트폴리오에 적힌 당시 YOLOv5 작업 및 아래 보존된 과거 결과와 같은 실행 결과로 주장하지 않습니다.
+
+---
+
 > **Portfolio Project** — 선박용 레이더 화면에서 객체를 탐지하는 컴퓨터 비전 프로젝트입니다.
 
 ## Overview
@@ -39,6 +78,8 @@ LabelMe JSON 어노테이션을 YOLO 형식으로 변환합니다. 클래스 레
 레이더 타입별 층화추출로 train/valid/test 세트를 분할합니다 (기본 80/10/10). 모든 분할에 각 레이더 타입이 균형 있게 포함되도록 합니다.
 
 ## Result
+
+**기존 결과 이미지 — 위의 현재 체크포인트 출력과 구분해 보존한 과거 자료입니다.**
 
 ![result](./sample_images/result.png)
 
